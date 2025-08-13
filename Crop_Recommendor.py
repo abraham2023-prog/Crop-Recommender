@@ -3,8 +3,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
-import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 # Set page config
@@ -31,53 +29,39 @@ def load_data():
 
 crop_df, reverse_crop_dict = load_data()
 
-# Load models with verification
+# Initialize fresh scalers (we'll fit them with the dataset)
+mx = MinMaxScaler()
+sc = StandardScaler()
+
+# Fit scalers with the dataset
+X = crop_df.drop('label', axis=1)
+mx.fit(X)
+sc.fit(mx.transform(X))
+
+# Load only the model
 @st.cache_resource
-def load_models():
+def load_model():
     try:
-        # Load with protocol=4 for compatibility
         with open('model.pkl', 'rb') as f:
-            rf = pickle.load(f)
-        with open('minmaxscaler.pkl', 'rb') as f:
-            mx = pickle.load(f)
-        with open('standardscaler.pkl', 'rb') as f:
-            sc = pickle.load(f)
-        
-        # Verify with test prediction
-        test_input = np.array([[90, 42, 43, 20.88, 82.0, 6.5, 202.94]])
-        transformed = sc.transform(mx.transform(test_input))
-        test_pred = rf.predict(transformed)
-        
-        if test_pred[0] not in reverse_crop_dict:
-            raise ValueError("Test prediction invalid")
-            
-        return rf, mx, sc
+            return pickle.load(f)
     except Exception as e:
         st.error(f"Model loading error: {str(e)}")
-        return None, None, None
+        return None
 
-rf, mx, sc = load_models()
+rf = load_model()
 
 def predict_crop(input_values):
-    """Make prediction with debug output"""
+    """Make prediction with proper scaling"""
     try:
-        st.write("Debug - Raw Input:", input_values)
-        
         # Transform to numpy array
         features = np.array([input_values])
-        st.write("Debug - Array Shape:", features.shape)
         
         # Apply transformations
         mx_features = mx.transform(features)
-        st.write("Debug - After MinMax:", mx_features)
-        
         sc_features = sc.transform(mx_features)
-        st.write("Debug - After Standard:", sc_features)
         
         # Make prediction
         prediction = rf.predict(sc_features)
-        st.write("Debug - Prediction:", prediction)
-        
         return prediction[0]
     except Exception as e:
         st.error(f"Prediction failed: {str(e)}")
@@ -108,21 +92,25 @@ def main():
                     'inputs': input_values
                 }
     
-    # Debug predictions with extreme values
-    with st.expander("Debug Tests"):
-        st.write("Try these extreme values to verify model behavior:")
+    # Force different predictions test
+    with st.expander("Force Different Predictions"):
+        st.write("These inputs should definitely NOT predict apple:")
         
-        if st.button("Test High Temperature (40°C)"):
-            pred = predict_crop([90, 42, 43, 40.0, 82.0, 6.5, 202.94])
-            st.write("Prediction:", reverse_crop_dict.get(pred, "Unknown"))
-            
-        if st.button("Test Low Temperature (10°C)"):
-            pred = predict_crop([90, 42, 43, 10.0, 82.0, 6.5, 202.94])
-            st.write("Prediction:", reverse_crop_dict.get(pred, "Unknown"))
-            
-        if st.button("Test High Rainfall (400mm)"):
-            pred = predict_crop([90, 42, 43, 20.88, 82.0, 6.5, 400.0])
-            st.write("Prediction:", reverse_crop_dict.get(pred, "Unknown"))
+        cols = st.columns(3)
+        with cols[0]:
+            if st.button("Rice Conditions"):
+                pred = predict_crop([83, 45, 60, 28.0, 80.0, 6.5, 250.0])
+                st.write(f"Prediction: {reverse_crop_dict.get(pred, 'Unknown')}")
+        
+        with cols[1]:
+            if st.button("Coffee Conditions"):
+                pred = predict_crop([110, 30, 50, 22.0, 85.0, 6.0, 180.0])
+                st.write(f"Prediction: {reverse_crop_dict.get(pred, 'Unknown')}")
+        
+        with cols[2]:
+            if st.button("Cotton Conditions"):
+                pred = predict_crop([90, 60, 50, 30.0, 60.0, 7.5, 100.0])
+                st.write(f"Prediction: {reverse_crop_dict.get(pred, 'Unknown')}")
     
     # Display results
     if 'prediction' in st.session_state:
@@ -138,14 +126,6 @@ def main():
         }).sort_values('Importance', ascending=False)
         
         st.bar_chart(importance.set_index('Feature'))
-        
-        # Show input values
-        st.subheader("Your Input Values")
-        input_df = pd.DataFrame({
-            'Feature': features,
-            'Value': pred['inputs']
-        })
-        st.dataframe(input_df.set_index('Feature'))
 
 if __name__ == '__main__':
     main()

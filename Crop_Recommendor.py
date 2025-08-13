@@ -17,10 +17,7 @@ st.set_page_config(
 # 1. Load and prepare data
 @st.cache_data
 def load_data():
-    # Load dataset
     crop = pd.read_csv('Crop_recommendation.csv')
-    
-    # Create mapping (same as your original)
     crop_dict = {
         'rice':1, 'maize':2, 'chickpea':3, 'kidneybeans':4,
         'pigeonpeas':5, 'mothbeans':6, 'mungbean':7, 'blackgram':8,
@@ -29,66 +26,60 @@ def load_data():
         'orange':17, 'papaya':18, 'coconut':19, 'cotton':20,
         'jute':21, 'coffee':22
     }
-    
     crop['label'] = crop['label'].map(crop_dict)
     return crop, {v:k for k,v in crop_dict.items()}
 
 crop_df, reverse_crop_dict = load_data()
 
 # 2. Model and scaler loading with verification
-@st.cache_resource
 def load_models():
     try:
-        # Verify and load scalers
-        if not os.path.exists('minmaxscaler.pkl') or not os.path.exists('standardscaler.pkl'):
-            raise FileNotFoundError("Scaler files missing")
-            
+        # Load with protocol=4 for compatibility
+        with open('model.pkl', 'rb') as f:
+            rf = pickle.load(f)
         with open('minmaxscaler.pkl', 'rb') as f:
             mx = pickle.load(f)
         with open('standardscaler.pkl', 'rb') as f:
             sc = pickle.load(f)
         
-        # Verify and load model
-        if not os.path.exists('model.pkl'):
-            raise FileNotFoundError("Model file missing")
-            
-        with open('model.pkl', 'rb') as f:
-            rf = pickle.load(f)
-        
-        # Test prediction with known values
+        # Verify with test prediction
         test_input = np.array([[90, 42, 43, 20.88, 82.0, 6.5, 202.94]])  # Should predict apple
         test_mx = mx.transform(test_input)
         test_sc = sc.transform(test_mx)
         test_pred = rf.predict(test_sc)
         
         if reverse_crop_dict.get(test_pred[0], "") != "apple":
-            st.warning("Model test failed - retraining...")
-            return retrain_models()
+            raise ValueError("Model verification failed")
+            
+        # Additional verification - should NOT predict apple for coffee conditions
+        coffee_test = np.array([[110, 30, 50, 22.0, 85.0, 6.0, 180.0]])
+        coffee_pred = rf.predict(sc.transform(mx.transform(coffee_test)))
+        if reverse_crop_dict.get(coffee_pred[0], "") == "apple":
+            raise ValueError("Model always predicting apple")
             
         return rf, mx, sc
     except Exception as e:
-        st.error(f"Loading failed: {str(e)} - retraining models")
+        st.error(f"Model loading failed: {str(e)} - retraining...")
         return retrain_models()
 
 def retrain_models():
-    """Fallback to retrain models if loading fails"""
+    """Retrain models from scratch"""
     try:
         X = crop_df.drop('label', axis=1)
         y = crop_df['label']
         
-        # Recreate your original preprocessing
         mx = MinMaxScaler().fit(X)
-        sc = StandardScaler().fit(mx.transform(X))
-        X_transformed = sc.transform(mx.transform(X))
+        X_mx = mx.transform(X)
+        sc = StandardScaler().fit(X_mx)
+        X_sc = sc.transform(X_mx)
         
-        # Retrain RandomForest
-        rf = RandomForestClassifier()
-        rf.fit(X_transformed, y)
+        rf = RandomForestClassifier(random_state=42)
+        rf.fit(X_sc, y)
         
-        # Save new models
-        pickle.dump(rf, open('model.pkl', 'wb'))
-        pickle.dump(mx, open('minmaxscaler.pkl', 'wb'))
-        pickle.dump(sc, open('standardscaler.pkl', 'wb'))
+        # Save with protocol=4
+        pickle.dump(rf, open('model.pkl', 'wb'), protocol=4)
+        pickle.dump(mx, open('minmaxscaler.pkl', 'wb'), protocol=4)
+        pickle.dump(sc, open('standardscaler.pkl', 'wb'), protocol=4)
         
         return rf, mx, sc
     except Exception as e:
@@ -97,44 +88,32 @@ def retrain_models():
 
 rf, mx, sc = load_models()
 
-# 3. Prediction function
+# 3. Prediction function with debug output
 def predict_crop(input_values):
     try:
+        st.write("Debug - Input Values:", input_values)
+        
         features = np.array([input_values])
+        st.write("Debug - Raw Features:", features)
+        
         mx_features = mx.transform(features)
+        st.write("Debug - After MinMax:", mx_features)
+        
         sc_features = sc.transform(mx_features)
-        return rf.predict(sc_features)[0]
+        st.write("Debug - After Standard:", sc_features)
+        
+        prediction = rf.predict(sc_features)
+        st.write("Debug - Raw Prediction:", prediction)
+        
+        return prediction[0]
     except Exception as e:
         st.error(f"Prediction error: {str(e)}")
         return None
 
-# 4. Find similar crops from dataset
-def find_similar_crops(input_values, main_crop_id, n=5):
-    try:
-        # Calculate Euclidean distance from input to all samples
-        features = ['N', 'P', 'K', 'temperature', 'humidity', 'ph', 'rainfall']
-        X = crop_df[features]
-        
-        # Scale input the same way
-        input_scaled = sc.transform(mx.transform([input_values]))
-        X_scaled = sc.transform(mx.transform(X))
-        
-        # Calculate distances
-        distances = np.sqrt(((X_scaled - input_scaled) ** 2).sum(axis=1))
-        
-        # Get most similar crops (excluding the predicted one)
-        similar = crop_df[distances.argsort()]
-        similar = similar[similar['label'] != main_crop_id]
-        
-        return similar.head(n)
-    except Exception as e:
-        st.error(f"Similar crops error: {str(e)}")
-        return pd.DataFrame()
-
-# 5. Streamlit app
+# 4. Streamlit app
 def main():
     st.title("🌱 Crop Recommendation System")
-    st.write("Model: Random Forest (Retrained)" if rf is None else "Model: Random Forest (Loaded)")
+    st.write("Using RandomForest with automatic error recovery")
     
     # Input section
     with st.sidebar:
@@ -153,37 +132,28 @@ def main():
             
             if prediction is not None:
                 st.session_state['prediction'] = {
-                    'crop_id': prediction,
-                    'crop_name': reverse_crop_dict.get(prediction, "Unknown"),
+                    'crop': reverse_crop_dict.get(prediction, "Unknown"),
                     'inputs': input_values
                 }
+    
+    # Debug tests
+    with st.expander("🧪 Debug Tests"):
+        st.write("Verify model behavior with known inputs:")
+        
+        if st.button("Test Apple Conditions"):
+            pred = predict_crop([90, 42, 43, 20.88, 82.0, 6.5, 202.94])
+            st.write("Should be apple:", reverse_crop_dict.get(pred, "Unknown"))
+            
+        if st.button("Test Coffee Conditions"):
+            pred = predict_crop([110, 30, 50, 22.0, 85.0, 6.0, 180.0])
+            st.write("Should NOT be apple:", reverse_crop_dict.get(pred, "Unknown"))
     
     # Results display
     if 'prediction' in st.session_state:
         pred = st.session_state['prediction']
+        st.success(f"## Recommended Crop: {pred['crop'].title()}")
         
-        st.success(f"## Recommended Crop: {pred['crop_name'].title()}")
-        
-        # Show similar crops
-        st.subheader("Similar Crops in Dataset")
-        similar_crops = find_similar_crops(pred['inputs'], pred['crop_id'])
-        
-        if not similar_crops.empty:
-            # Display similar crops with their parameters
-            st.dataframe(
-                similar_crops.rename(columns={
-                    'temperature': 'Temp',
-                    'humidity': 'Humid',
-                    'rainfall': 'Rain'
-                })[['N', 'P', 'K', 'Temp', 'Humid', 'ph', 'Rain']].assign(
-                    Crop=similar_crops['label'].map(reverse_crop_dict)
-                ),
-                hide_index=True
-            )
-        else:
-            st.warning("No similar crops found in dataset")
-        
-        # Feature importance
+        # Show feature importance
         if rf is not None:
             st.subheader("Feature Importance")
             features = ['N', 'P', 'K', 'Temperature', 'Humidity', 'pH', 'Rainfall']

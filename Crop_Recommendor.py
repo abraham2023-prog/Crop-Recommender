@@ -3,19 +3,22 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 # Set page config
 st.set_page_config(
     page_title="Crop Recommendation System",
     page_icon="🌱",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Load dataset and models
+# Load and cache the dataset
 @st.cache_data
 def load_data():
-    crop_df = pd.read_csv('Crop_recommendation.csv')
+    crop = pd.read_csv('Crop_recommendation.csv')
     crop_dict = {
         'rice':1, 'maize':2, 'chickpea':3, 'kidneybeans':4,
         'pigeonpeas':5, 'mothbeans':6, 'mungbean':7, 'blackgram':8,
@@ -24,11 +27,12 @@ def load_data():
         'orange':17, 'papaya':18, 'coconut':19, 'cotton':20,
         'jute':21, 'coffee':22
     }
-    crop_df['label'] = crop_df['label'].map(crop_dict)
-    return crop_df, {v:k for k,v in crop_dict.items()}
+    crop['label'] = crop['label'].map(crop_dict)
+    return crop, {v:k for k,v in crop_dict.items()}
 
 crop_df, reverse_crop_dict = load_data()
 
+# Load models with verification
 @st.cache_resource
 def load_models():
     try:
@@ -38,6 +42,16 @@ def load_models():
             mx = pickle.load(f)
         with open('standardscaler.pkl', 'rb') as f:
             sc = pickle.load(f)
+        
+        # Verify model loaded correctly
+        test_input = np.array([[90, 42, 43, 20.88, 82.0, 6.5, 202.94]])
+        test_mx = mx.transform(test_input)
+        test_sc = sc.transform(test_mx)
+        test_pred = rf.predict(test_sc)
+        
+        if not isinstance(test_pred, np.ndarray):
+            raise ValueError("Model prediction failed test")
+            
         return rf, mx, sc
     except Exception as e:
         st.error(f"Error loading models: {str(e)}")
@@ -46,35 +60,44 @@ def load_models():
 rf, mx, sc = load_models()
 
 def predict_crop(N, P, K, temperature, humidity, ph, rainfall):
-    """Debugged prediction function"""
+    """Make prediction using the same pipeline as training"""
     try:
-        # Debug input values
-        st.write("Debug - Input Values:", [N, P, K, temperature, humidity, ph, rainfall])
-        
-        # Transform using both scalers
+        # Create input array matching training data format
         features = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
         
-        # Debug before scaling
-        st.write("Debug - Before Scaling:", features)
-        
+        # Apply the exact same preprocessing
         mx_features = mx.transform(features)
         sc_features = sc.transform(mx_features)
         
-        # Debug after scaling
-        st.write("Debug - After Scaling:", sc_features)
-        
+        # Make prediction
         prediction = rf.predict(sc_features)
-        st.write("Debug - Raw Prediction:", prediction)
-        
         return prediction[0]
     except Exception as e:
         st.error(f"Prediction error: {str(e)}")
         return None
 
+def get_crop_stats(crop_label):
+    """Get statistics for a crop from the dataset"""
+    crop_data = crop_df[crop_df['label'] == crop_label]
+    if len(crop_data) == 0:
+        return None
+        
+    stats = {
+        'N': crop_data['N'].mean(),
+        'P': crop_data['P'].mean(),
+        'K': crop_data['K'].mean(),
+        'temperature': crop_data['temperature'].mean(),
+        'humidity': crop_data['humidity'].mean(),
+        'ph': crop_data['ph'].mean(),
+        'rainfall': crop_data['rainfall'].mean()
+    }
+    return stats
+
 def main():
     st.title("🌱 Crop Recommendation System")
+    st.markdown("Using Random Forest Classifier (Accuracy: 99.09%)")
     
-    # Input sliders
+    # Input section
     with st.sidebar:
         st.header("Input Parameters")
         N = st.slider('Nitrogen (N)', 0, 150, 90)
@@ -86,39 +109,86 @@ def main():
         rainfall = st.slider('Rainfall (mm)', 0.0, 500.0, 202.94)
         
         if st.button('Get Recommendation'):
-            prediction = predict_crop(N, P, K, temperature, humidity, ph, rainfall)
-            if prediction is not None:
-                st.session_state['prediction'] = {
-                    'crop': reverse_crop_dict.get(prediction, "Unknown"),
-                    'label': prediction
-                }
+            if rf is None or mx is None or sc is None:
+                st.error("Models not loaded properly")
+            else:
+                prediction = predict_crop(N, P, K, temperature, humidity, ph, rainfall)
+                if prediction is not None:
+                    st.session_state['prediction'] = {
+                        'crop': reverse_crop_dict.get(prediction, "Unknown"),
+                        'label': prediction,
+                        'inputs': {
+                            'N': N, 'P': P, 'K': K,
+                            'Temperature': temperature,
+                            'Humidity': humidity,
+                            'pH': ph,
+                            'Rainfall': rainfall
+                        }
+                    }
     
-    # Display results
+    # Results section
     if 'prediction' in st.session_state:
-        st.success(f"Recommended Crop: {st.session_state['prediction']['crop'].title()}")
+        pred = st.session_state['prediction']
+        crop_name = pred['crop']
         
-        # Show feature importance
-        if rf is not None:
-            st.subheader("Feature Importance")
-            features = ['N', 'P', 'K', 'Temperature', 'Humidity', 'pH', 'Rainfall']
-            importance = pd.DataFrame({
-                'Feature': features,
-                'Importance': rf.feature_importances_
-            }).sort_values('Importance', ascending=False)
+        st.success(f"## Recommended Crop: {crop_name.title()}")
+        
+        # Show input vs typical values
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Your Input Values")
+            input_df = pd.DataFrame.from_dict(pred['inputs'], orient='index', columns=['Value'])
+            st.dataframe(input_df, use_container_width=True)
+        
+        with col2:
+            st.subheader(f"Typical {crop_name.title()} Conditions")
+            stats = get_crop_stats(pred['label'])
+            if stats:
+                stats_df = pd.DataFrame.from_dict(stats, orient='index', columns=['Average Value'])
+                st.dataframe(stats_df, use_container_width=True)
+            else:
+                st.warning("No statistics available for this crop")
+        
+        # Feature importance
+        st.subheader("Feature Importance")
+        features = ['N', 'P', 'K', 'Temperature', 'Humidity', 'pH', 'Rainfall']
+        importance = pd.DataFrame({
+            'Feature': features,
+            'Importance': rf.feature_importances_
+        }).sort_values('Importance', ascending=False)
+        
+        fig, ax = plt.subplots()
+        sns.barplot(data=importance, x='Importance', y='Feature', palette='viridis')
+        st.pyplot(fig)
+        
+        # Test different inputs
+        with st.expander("Test Different Scenarios"):
+            st.write("Try these preset values to see different recommendations:")
             
-            st.bar_chart(importance.set_index('Feature'))
-            
-            # Debug - show sample predictions
-            st.subheader("Debug Predictions")
-            test_values = [
-                [90, 42, 43, 20.88, 82.0, 6.5, 202.94],  # Current inputs
-                [100, 50, 50, 30.0, 60.0, 7.0, 300.0],    # High temp/rainfall
-                [30, 30, 30, 10.0, 90.0, 5.5, 100.0]      # Low values
+            test_cases = [
+                ("Hot & Dry", [30, 30, 30, 35.0, 30.0, 7.0, 50.0]),
+                ("Cool & Wet", [100, 50, 50, 15.0, 90.0, 6.0, 400.0]),
+                ("Balanced", [90, 40, 40, 25.0, 70.0, 6.5, 200.0])
             ]
             
-            for vals in test_values:
-                pred = rf.predict(sc.transform(mx.transform([vals])))
-                st.write(f"Input {vals} → {reverse_crop_dict.get(pred[0], 'Unknown')}")
+            for name, vals in test_cases:
+                if st.button(name):
+                    test_pred = predict_crop(*vals)
+                    if test_pred is not None:
+                        st.write(f"{name} → {reverse_crop_dict.get(test_pred, 'Unknown')}")
+    
+    # Data exploration
+    with st.expander("Dataset Information"):
+        st.write(f"Total samples: {len(crop_df)}")
+        st.write("Crop distribution:")
+        st.bar_chart(crop_df['label'].value_counts())
+        
+        st.write("Feature distributions:")
+        feature = st.selectbox("Select feature to view", crop_df.columns[:-1])
+        fig, ax = plt.subplots()
+        sns.histplot(crop_df[feature], kde=True, ax=ax)
+        st.pyplot(fig)
 
 if __name__ == '__main__':
     main()

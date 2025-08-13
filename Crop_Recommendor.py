@@ -3,7 +3,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
+import os
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
 
 # Set page config
 st.set_page_config(
@@ -12,7 +15,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Load dataset and create mappings
+# 1. Load dataset and create mappings
 @st.cache_data
 def load_data():
     crop = pd.read_csv('Crop_recommendation.csv')
@@ -29,47 +32,73 @@ def load_data():
 
 crop_df, reverse_crop_dict = load_data()
 
-# Initialize fresh scalers (we'll fit them with the dataset)
-mx = MinMaxScaler()
-sc = StandardScaler()
-
-# Fit scalers with the dataset
-X = crop_df.drop('label', axis=1)
-mx.fit(X)
-sc.fit(mx.transform(X))
-
-# Load only the model
-@st.cache_resource
-def load_model():
+# 2. Train and save models
+def train_models():
     try:
-        with open('model.pkl', 'rb') as f:
-            return pickle.load(f)
-    except Exception as e:
-        st.error(f"Model loading error: {str(e)}")
-        return None
-
-rf = load_model()
-
-def predict_crop(input_values):
-    """Make prediction with proper scaling"""
-    try:
-        # Transform to numpy array
-        features = np.array([input_values])
+        X = crop_df.drop('label', axis=1)
+        y = crop_df['label']
         
-        # Apply transformations
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        # Scale data
+        mx = MinMaxScaler().fit(X_train)
+        X_train_mx = mx.transform(X_train)
+        sc = StandardScaler().fit(X_train_mx)
+        X_train_sc = sc.transform(X_train_mx)
+        
+        # Train model
+        rf = RandomForestClassifier(random_state=42)
+        rf.fit(X_train_sc, y_train)
+        
+        # Save models
+        with open('model.pkl', 'wb') as f:
+            pickle.dump(rf, f, protocol=4)
+        with open('minmaxscaler.pkl', 'wb') as f:
+            pickle.dump(mx, f, protocol=4)
+        with open('standardscaler.pkl', 'wb') as f:
+            pickle.dump(sc, f, protocol=4)
+            
+        return rf, mx, sc
+    except Exception as e:
+        st.error(f"Model training failed: {str(e)}")
+        return None, None, None
+
+# 3. Load or train models
+@st.cache_resource
+def load_models():
+    # Try to load existing models
+    try:
+        if all(os.path.exists(f) for f in ['model.pkl', 'minmaxscaler.pkl', 'standardscaler.pkl']):
+            with open('model.pkl', 'rb') as f:
+                rf = pickle.load(f)
+            with open('minmaxscaler.pkl', 'rb') as f:
+                mx = pickle.load(f)
+            with open('standardscaler.pkl', 'rb') as f:
+                sc = pickle.load(f)
+            return rf, mx, sc
+    except:
+        pass
+    
+    # If loading fails, train new models
+    return train_models()
+
+rf, mx, sc = load_models()
+
+# 4. Prediction function
+def predict_crop(N, P, K, temperature, humidity, ph, rainfall):
+    try:
+        features = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
         mx_features = mx.transform(features)
         sc_features = sc.transform(mx_features)
-        
-        # Make prediction
-        prediction = rf.predict(sc_features)
-        return prediction[0]
+        return rf.predict(sc_features)[0]
     except Exception as e:
-        st.error(f"Prediction failed: {str(e)}")
+        st.error(f"Prediction error: {str(e)}")
         return None
 
+# 5. Streamlit app
 def main():
     st.title("🌱 Crop Recommendation System")
-    st.write("Model: Random Forest (99.09% accuracy)")
     
     # Input section
     with st.sidebar:
@@ -83,48 +112,25 @@ def main():
         rainfall = st.slider('Rainfall (mm)', 0.0, 500.0, 202.94)
         
         if st.button('Get Recommendation'):
-            input_values = [N, P, K, temperature, humidity, ph, rainfall]
-            prediction = predict_crop(input_values)
-            
+            prediction = predict_crop(N, P, K, temperature, humidity, ph, rainfall)
             if prediction is not None:
                 st.session_state['prediction'] = {
                     'crop': reverse_crop_dict.get(prediction, "Unknown"),
-                    'inputs': input_values
+                    'inputs': [N, P, K, temperature, humidity, ph, rainfall]
                 }
     
-    # Force different predictions test
-    with st.expander("Force Different Predictions"):
-        st.write("These inputs should definitely NOT predict apple:")
-        
-        cols = st.columns(3)
-        with cols[0]:
-            if st.button("Rice Conditions"):
-                pred = predict_crop([83, 45, 60, 28.0, 80.0, 6.5, 250.0])
-                st.write(f"Prediction: {reverse_crop_dict.get(pred, 'Unknown')}")
-        
-        with cols[1]:
-            if st.button("Coffee Conditions"):
-                pred = predict_crop([110, 30, 50, 22.0, 85.0, 6.0, 180.0])
-                st.write(f"Prediction: {reverse_crop_dict.get(pred, 'Unknown')}")
-        
-        with cols[2]:
-            if st.button("Cotton Conditions"):
-                pred = predict_crop([90, 60, 50, 30.0, 60.0, 7.5, 100.0])
-                st.write(f"Prediction: {reverse_crop_dict.get(pred, 'Unknown')}")
-    
-    # Display results
+    # Results display
     if 'prediction' in st.session_state:
         pred = st.session_state['prediction']
         st.success(f"## Recommended Crop: {pred['crop'].title()}")
         
-        # Show feature importance
+        # Feature importance
         st.subheader("Feature Importance")
         features = ['N', 'P', 'K', 'Temperature', 'Humidity', 'pH', 'Rainfall']
         importance = pd.DataFrame({
             'Feature': features,
             'Importance': rf.feature_importances_
         }).sort_values('Importance', ascending=False)
-        
         st.bar_chart(importance.set_index('Feature'))
 
 if __name__ == '__main__':

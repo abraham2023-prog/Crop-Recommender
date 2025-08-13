@@ -63,7 +63,7 @@ def get_similar_crops(predicted_label, top_n=3):
             (row['temperature']-target_means['temperature'])**2 +
             (row['humidity']-target_means['humidity'])**2 +
             (row['ph']-target_means['ph'])**2 +
-            (row['rainfall']-target_means['rainfall'])**2
+            (row['rainfall']-target_means['rainfall'])**2)
         )),
         axis=1
     )

@@ -36,16 +36,15 @@ def train_model(data):
     X = data.drop('label', axis=1)
     y = data['label']
 
-    # Split data
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
-    # Scale
     mx = MinMaxScaler().fit(X_train)
     X_train_mx = mx.transform(X_train)
     sc = StandardScaler().fit(X_train_mx)
     X_train_sc = sc.transform(X_train_mx)
 
-    # Train
     rf = RandomForestClassifier(random_state=42)
     rf.fit(X_train_sc, y_train)
 
@@ -64,7 +63,6 @@ def predict_top_crops(N, P, K, temperature, humidity, ph, rainfall):
     top3_idx = np.argsort(probs)[::-1][:3]
     top3 = [(rf.classes_[i], probs[i]) for i in top3_idx]
 
-    # Realism filter
     filtered = []
     for crop, prob in top3:
         if crop == "coffee" and not (18 <= temperature <= 28 and humidity >= 60):
@@ -84,7 +82,6 @@ fertilizer_dict = {
     "wheat": "Balanced NPK, especially nitrogen during tillering.",
     "coffee": "Use organic compost, NPK with extra potassium.",
     "apple": "Organic manure plus calcium ammonium nitrate."
-    # Add more crops as needed
 }
 
 # ----------------------------
@@ -97,7 +94,6 @@ def get_crop_info(crop_name):
         "wheat": "Wheat grows well in cool, dry climates.",
         "coffee": "Coffee grows in tropical climates with high humidity and moderate shade.",
         "apple": "Apple needs cold winters and mild summers."
-        # Add more crops as needed
     }
     return info_dict.get(crop_name.lower(), "No information available.")
 
@@ -105,16 +101,39 @@ def get_crop_info(crop_name):
 # Seasonal Chart
 # ----------------------------
 def seasonal_chart(df):
-    fig = px.scatter(df, x="temperature", y="rainfall", color="label",
-                     title="Seasonal Crop Distribution",
-                     labels={"temperature": "Temperature (°C)", "rainfall": "Rainfall (mm)"},
-                     opacity=0.7)
+    fig = px.scatter(
+        df, x="temperature", y="rainfall", color="label",
+        title="Seasonal Crop Distribution",
+        labels={"temperature": "Temperature (°C)", "rainfall": "Rainfall (mm)"},
+        opacity=0.7
+    )
     st.plotly_chart(fig, use_container_width=True)
+
+# ----------------------------
+# Batch Prediction
+# ----------------------------
+def batch_predict(df):
+    try:
+        features = df[['N', 'P', 'K', 'temperature', 'humidity', 'ph', 'rainfall']]
+        mx_features = mx.transform(features)
+        sc_features = sc.transform(mx_features)
+        predictions = rf.predict(sc_features)
+        df['Predicted_Crop'] = predictions
+        return df
+    except Exception as e:
+        st.error(f"Error during prediction: {e}")
+        return None
 
 # ----------------------------
 # Streamlit Tabs
 # ----------------------------
-tab1, tab2, tab3, tab4 = st.tabs(["🌱 Crop Recommendation", "📖 Crop Info", "💧 Fertilizer Guide", "📊 Seasonal Chart"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "🌱 Crop Recommendation",
+    "📖 Crop Info",
+    "💧 Fertilizer Guide",
+    "📊 Seasonal Chart",
+    "📂 Upload & Predict"
+])
 
 # --- Tab 1: Recommendation ---
 with tab1:
@@ -133,7 +152,6 @@ with tab1:
         for crop_name, prob in top_crops:
             st.write(f"- **{crop_name.title()}** ({prob*100:.1f}% confidence)")
 
-        # Feature importance
         features = ['N', 'P', 'K', 'Temperature', 'Humidity', 'pH', 'Rainfall']
         importance = pd.DataFrame({"Feature": features, "Importance": rf.feature_importances_})
         importance = importance.sort_values('Importance', ascending=False)
@@ -156,6 +174,34 @@ with tab3:
 with tab4:
     st.header("Seasonal Crop Chart")
     seasonal_chart(crop_df)
+
+# --- Tab 5: Upload & Predict ---
+with tab5:
+    st.header("Upload Dataset for Batch Prediction")
+    uploaded_file = st.file_uploader("Upload CSV or Excel", type=["csv", "xlsx"])
+
+    if uploaded_file is not None:
+        if uploaded_file.name.endswith(".csv"):
+            new_df = pd.read_csv(uploaded_file)
+        else:
+            new_df = pd.read_excel(uploaded_file)
+
+        st.subheader("Uploaded Data Preview")
+        st.dataframe(new_df.head())
+
+        result_df = batch_predict(new_df)
+        if result_df is not None:
+            st.subheader("Predictions")
+            st.dataframe(result_df)
+
+            csv = result_df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="Download Predictions as CSV",
+                data=csv,
+                file_name="predictions.csv",
+                mime="text/csv"
+            )
+
 
 
 

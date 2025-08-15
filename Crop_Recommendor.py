@@ -79,10 +79,28 @@ def predict_top_crops(N, P, K, temperature, humidity, ph, rainfall):
 fertilizer_dict = {
     "rice": "Apply urea, DAP, and potash at recommended doses during planting.",
     "maize": "Nitrogen-rich fertilizers during growth stage; potash for root strength.",
-    "wheat": "Balanced NPK, especially nitrogen during tillering.",
     "coffee": "Use organic compost, NPK with extra potassium.",
-    "apple": "Organic manure plus calcium ammonium nitrate."
+    "apple": "Organic manure plus calcium ammonium nitrate.",
+    "chickpea": "Apply phosphorus-rich fertilizers like SSP at sowing; minimal nitrogen required.",
+    "kidneybeans": "Balanced NPK with extra phosphorus for root development; avoid excess nitrogen.",
+    "pigeonpeas": "Phosphorus-based fertilizers during planting; organic manure improves yield.",
+    "mothbeans": "Low nitrogen, moderate phosphorus; respond well to farmyard manure.",
+    "mungbean": "Phosphorus-rich fertilizers; avoid excess nitrogen to prevent vegetative growth.",
+    "blackgram": "Phosphorus and potassium during sowing; nitrogen only in small doses.",
+    "lentil": "Balanced NPK with higher phosphorus; apply gypsum for sulfur needs.",
+    "pomegranate": "NPK with extra potassium during fruiting; organic compost for soil health.",
+    "banana": "High potassium and nitrogen throughout growth; apply in split doses.",
+    "mango": "Farmyard manure plus NPK; extra potassium during flowering and fruiting.",
+    "grapes": "NPK with high potassium and magnesium; apply boron to improve fruit set.",
+    "watermelon": "Balanced NPK with extra potassium; calcium nitrate improves fruit quality.",
+    "muskmelon": "NPK with higher potassium; organic manure for soil structure.",
+    "orange": "NPK with emphasis on potassium; micronutrients like zinc and magnesium are beneficial.",
+    "papaya": "NPK in equal ratio; magnesium sulfate for leaf health.",
+    "coconut": "NPK with extra potassium; magnesium sulfate and organic mulch recommended.",
+    "cotton": "Balanced NPK; extra nitrogen during early growth and potassium during boll formation.",
+    "jute": "Nitrogen for vegetative growth; phosphorus and potassium for fiber quality."
 }
+
 
 # ----------------------------
 # Crop Info Lookup

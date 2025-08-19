@@ -419,6 +419,7 @@ with tab6:
         - Annual range: 200-900mm
         """)
 
+# Soil health analyzer
 def soil_health():
     st.subheader("Soil Health Analyzer")
     with st.expander("Nitrogen Deficiency"):
@@ -429,7 +430,73 @@ def soil_health():
         st.image("https://www.gardeningknowhow.com/wp-content/uploads/2019/07/phosphorus-deficiency.jpg")
         st.write("Symptoms: Dark green leaves with purple discoloration")
 
+# Markrt price
+@st.cache_data
+def load_market_data():
+    # Mock data - replace with real API integration
+    return pd.DataFrame({
+        "Crop": ["Rice", "Wheat", "Corn"],
+        "Current Price": [12.5, 8.2, 4.7],
+        "Trend": ["↑ 2%", "↓ 1.5%", "→ Stable"]
+    })
 
+def market_trends():
+    st.subheader("Market Prices")
+    df = load_market_data()
+    st.dataframe(df.style.highlight_max(axis=0))
+    
+    # Add refresh button
+    if st.button("Refresh Market Data"):
+        st.cache_data.clear()
+        df = load_market_data()
+# AI chat assistant
+from openai import OpenAI
+
+def crop_assistant():
+    st.subheader("Crop Advisor Chat")
+    
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    
+    if prompt := st.chat_input("Ask about crops..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        # Mock response - replace with real API call
+        response = f"Based on your query about '{prompt}', I recommend checking soil nitrogen levels first."
+        with st.chat_message("assistant"):
+            st.markdown(response)
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
+# Mobile optimizer
+st.markdown("""
+<style>
+@media screen and (max-width: 600px) {
+    .stNumberInput, .stSelectbox {
+        width: 100% !important;
+    }
+    .stButton>button {
+        width: 100%;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
+# User account and History
+def user_profile():
+    if 'user' not in st.session_state:
+        st.text_input("Enter your name to save predictions", key='user_name')
+        if st.button("Save Profile"):
+            st.session_state.user = st.session_state.user_name
+            st.success("Profile saved!")
+    else:
+        st.success(f"Welcome back {st.session_state.user}!")
+        # Add prediction history logic here
 
 
 

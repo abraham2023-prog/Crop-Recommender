@@ -101,7 +101,6 @@ fertilizer_dict = {
     "jute": "Nitrogen for vegetative growth; phosphorus and potassium for fiber quality."
 }
 
-
 # ----------------------------
 # Crop Info Lookup
 # ----------------------------
@@ -174,19 +173,88 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # --- Tab 1: Recommendation ---
 with tab1:
     st.header("Get Crop Recommendations")
-    N = st.slider('Nitrogen (N)', 0, 150, 90)
-    P = st.slider('Phosphorous (P)', 0, 150, 42)
-    K = st.slider('Potassium (K)', 0, 150, 43)
-    temperature = st.slider('Temperature (°C)', 0.0, 50.0, 20.88)
-    humidity = st.slider('Humidity (%)', 0.0, 100.0, 82.0)
-    ph = st.slider('pH', 0.0, 14.0, 6.5)
-    rainfall = st.slider('Rainfall (mm)', 0.0, 500.0, 202.94)
+    
+    # Create columns for better layout
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Number inputs for NPK with step=1 (whole numbers)
+        N = st.number_input('Nitrogen (N)', min_value=0, max_value=150, value=90, step=1)
+        P = st.number_input('Phosphorous (P)', min_value=0, max_value=150, value=42, step=1)
+        K = st.number_input('Potassium (K)', min_value=0, max_value=150, value=43, step=1)
+        
+        # Temperature input with dropdown for common ranges
+        temp_options = {
+            "Cool (0-15°C)": 10,
+            "Moderate (15-25°C)": 20,
+            "Warm (25-35°C)": 30,
+            "Hot (35-50°C)": 40
+        }
+        selected_temp = st.selectbox(
+            "Temperature Range",
+            options=list(temp_options.keys()),
+            index=1
+        )
+        temperature = st.number_input(
+            "Temperature (°C)",
+            min_value=0.0,
+            max_value=50.0,
+            value=float(temp_options[selected_temp]),
+            step=0.1
+        )
+    
+    with col2:
+        # Humidity input with visual gauge
+        humidity = st.select_slider(
+            'Humidity (%)',
+            options=[0, 25, 50, 75, 100],
+            value=82
+        )
+        
+        # pH input with range indicators
+        st.markdown("pH Level")
+        ph = st.slider(
+            "",
+            min_value=0.0,
+            max_value=14.0,
+            value=6.5,
+            step=0.1,
+            label_visibility="collapsed"
+        )
+        st.markdown("""
+        <div style="display: flex; justify-content: space-between; margin-top: -20px">
+            <span>Acidic</span>
+            <span>Neutral</span>
+            <span>Alkaline</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Rainfall input with dropdown for climate types
+        rain_options = {
+            "Arid (<200mm)": 150,
+            "Moderate (200-400mm)": 300,
+            "Wet (>400mm)": 450
+        }
+        selected_rain = st.selectbox(
+            "Rainfall Pattern",
+            options=list(rain_options.keys()),
+            index=0
+        )
+        rainfall = st.number_input(
+            "Rainfall (mm)",
+            min_value=0.0,
+            max_value=500.0,
+            value=float(rain_options[selected_rain]),
+            step=1.0
+        )
 
-    if st.button("Recommend Crops"):
+    if st.button("Recommend Crops", type="primary"):
         top_crops = predict_top_crops(N, P, K, temperature, humidity, ph, rainfall)
         st.success("### Top Recommended Crops:")
         for crop_name, prob in top_crops:
-            st.write(f"- **{crop_name.title()}** ({prob*100:.1f}% confidence)")
+            with st.expander(f"{crop_name.title()} ({prob*100:.1f}% confidence)"):
+                st.write(get_crop_info(crop_name))
+                st.info(f"**Fertilizer Recommendation:** {fertilizer_dict.get(crop_name, 'Not available')}")
 
         features = ['N', 'P', 'K', 'Temperature', 'Humidity', 'pH', 'Rainfall']
         importance = pd.DataFrame({"Feature": features, "Importance": rf.feature_importances_})

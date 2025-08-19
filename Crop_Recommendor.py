@@ -217,39 +217,38 @@ fertilizer_dict = {
     "cotton": "Balanced NPK; extra nitrogen during early growth and potassium during boll formation.",
     "jute": "Nitrogen for vegetative growth; phosphorus and potassium for fiber quality."
 }
+
 # ----------------------------
 # Crop Info Lookup
 # ----------------------------
 def get_crop_info(crop_name):
     info_dict = {
-    "rice": "Rice needs warm temperatures and standing water for most of its growing period.",
-    "maize": "Maize prefers well-drained soil and moderate rainfall.",
-    "coffee": "Coffee grows in tropical climates with high humidity and moderate shade.",
-    "apple": "Apple needs cold winters and mild summers.",
-    "chickpea": "Chickpea prefers cool, dry climates and well-drained loamy soils.",
-    "kidneybeans": "Kidney beans grow best in warm conditions with moderate rainfall.",
-    "pigeonpeas": "Pigeon peas thrive in warm climates and tolerate low rainfall.",
-    "mothbeans": "Moth beans are drought-tolerant and grow in sandy, well-drained soils.",
-    "mungbean": "Mung beans prefer warm weather and well-drained soils.",
-    "blackgram": "Black gram grows well in warm, humid climates with loamy soils.",
-    "lentil": "Lentils need cool weather and fertile, well-drained soils.",
-    "pomegranate": "Pomegranate thrives in hot, dry climates with low humidity.",
-    "banana": "Bananas require warm, humid climates and fertile, well-drained soils.",
-    "mango": "Mango trees grow well in tropical and subtropical climates with dry periods.",
-    "grapes": "Grapes prefer warm, dry climates with well-drained soils.",
-    "watermelon": "Watermelon grows in hot climates and sandy loam soils.",
-    "muskmelon": "Muskmelon prefers warm temperatures and sandy, well-drained soils.",
-    "orange": "Oranges thrive in subtropical climates with well-drained sandy loam.",
-    "papaya": "Papaya grows best in tropical climates with consistent warmth and rainfall.",
-    "coconut": "Coconut palms need high humidity, sandy soils, and coastal climates.",
-    "cotton": "Cotton grows in warm climates with moderate rainfall and loamy soils.",
-    "jute": "Jute requires warm, humid climates with alluvial soils and high rainfall."
-}
-
+        "rice": "Rice needs warm temperatures and standing water for most of its growing period.",
+        "maize": "Maize prefers well-drained soil and moderate rainfall.",
+        "coffee": "Coffee grows in tropical climates with high humidity and moderate shade.",
+        "apple": "Apple needs cold winters and mild summers.",
+        "chickpea": "Chickpea prefers cool, dry climates and well-drained loamy soils.",
+        "kidneybeans": "Kidney beans grow best in warm conditions with moderate rainfall.",
+        "pigeonpeas": "Pigeon peas thrive in warm climates and tolerate low rainfall.",
+        "mothbeans": "Moth beans are drought-tolerant and grow in sandy, well-drained soils.",
+        "mungbean": "Mung beans prefer warm weather and well-drained soils.",
+        "blackgram": "Black gram grows well in warm, humid climates with loamy soils.",
+        "lentil": "Lentils need cool weather and fertile, well-drained soils.",
+        "pomegranate": "Pomegranate thrives in hot, dry climates with low humidity.",
+        "banana": "Bananas require warm, humid climates and fertile, well-drained soils.",
+        "mango": "Mango trees grow well in tropical and subtropical climates with dry periods.",
+        "grapes": "Grapes prefer warm, dry climates with well-drained soils.",
+        "watermelon": "Watermelon grows in hot climates and sandy loam soils.",
+        "muskmelon": "Muskmelon prefers warm temperatures and sandy, well-drained soils.",
+        "orange": "Oranges thrive in subtropical climates with well-drained sandy loam.",
+        "papaya": "Papaya grows best in tropical climates with consistent warmth and rainfall.",
+        "coconut": "Coconut palms need high humidity, sandy soils, and coastal climates.",
+        "cotton": "Cotton grows in warm climates with moderate rainfall and loamy soils.",
+        "jute": "Jute requires warm, humid climates with alluvial soils and high rainfall."
+    }
     return info_dict.get(crop_name.lower(), "No information available.")
-    pass
 
-    # ----------------------------
+# ----------------------------
 # Seasonal Chart
 # ----------------------------
 def seasonal_chart(df):
@@ -260,10 +259,8 @@ def seasonal_chart(df):
         opacity=0.7
     )
     st.plotly_chart(fig, use_container_width=True)
-    pass
 
-def batch_predict(df):
-    # ----------------------------
+# ----------------------------
 # Batch Prediction
 # ----------------------------
 def batch_predict(df):
@@ -277,7 +274,6 @@ def batch_predict(df):
     except Exception as e:
         st.error(f"Error during prediction: {e}")
         return None
-    pass
 
 # ----------------------------
 # Streamlit App Layout
@@ -295,63 +291,19 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 with tab1:
     st.header("Get Crop Recommendations")
     
-    # Create columns for better layout
     col1, col2 = st.columns(2)
     
     with col1:
-        # Number inputs for NPK with step=1 (whole numbers)
         N = st.number_input('Nitrogen (N)', min_value=0, max_value=150, value=90, step=1)
         P = st.number_input('Phosphorous (P)', min_value=0, max_value=150, value=42, step=1)
         K = st.number_input('Potassium (K)', min_value=0, max_value=150, value=43, step=1)
-        
-        # Temperature input with number input and range guidance
-        temperature = st.number_input(
-            "Temperature (°C)",
-            min_value=0.0,
-            max_value=50.0,
-            value=20.88,
-            step=0.1,
-            help="Typical ranges: 0-15°C (Cool), 15-25°C (Moderate), 25-35°C (Warm), 35-50°C (Hot)"
-        )
+        temperature = st.number_input('Temperature (°C)', 0.0, 50.0, 20.88, step=0.1)
     
     with col2:
-        # Humidity input with regular slider (fixed to match training data range)
-        humidity = st.slider(
-            'Humidity (%)',
-            min_value=0.0,
-            max_value=100.0,
-            value=82.0,
-            step=0.1
-        )
-        
-        # pH input with range indicators
-        st.markdown("pH Level")
-        ph = st.slider(
-            "",
-            min_value=0.0,
-            max_value=14.0,
-            value=6.5,
-            step=0.1,
-            label_visibility="collapsed"
-        )
-        st.markdown("""
-        <div style="display: flex; justify-content: space-between; margin-top: -20px">
-            <span>Acidic</span>
-            <span>Neutral</span>
-            <span>Alkaline</span>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Rainfall input with number input
-        rainfall = st.number_input(
-            "Rainfall (mm)",
-            min_value=0.0,
-            max_value=500.0,
-            value=202.94,
-            step=1.0,
-            help="Typical ranges: <200mm (Arid), 200-400mm (Moderate), >400mm (Wet)"
-        )
-
+        humidity = st.slider('Humidity (%)', 0.0, 100.0, 82.0, step=0.1)
+        ph = st.slider('pH', 0.0, 14.0, 6.5, step=0.1)
+        rainfall = st.slider('Rainfall (mm)', 0.0, 500.0, 202.94, step=1.0)
+    
     if st.button("Recommend Crops", type="primary"):
         top_crops = predict_top_crops(N, P, K, temperature, humidity, ph, rainfall)
         st.success("### Top Recommended Crops:")
@@ -409,13 +361,13 @@ with tab5:
                 file_name="predictions.csv",
                 mime="text/csv"
             )
-# --- New Eritrea-Focused Tab ---
+
+# --- Tab 6: Eritrea Focus ---
 with tab6:
     st.header("Eritrea-Specific Agricultural Tools")
     show_eritrea_map()
     eritrea_seasonal_calendar()
     
-    # Add climate summary
     with st.expander("🌡️ Eritrea Climate Overview"):
         st.markdown("""
         **Key Climate Zones:**

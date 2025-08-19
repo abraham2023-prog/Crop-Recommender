@@ -217,31 +217,32 @@ fertilizer_dict = {
 # Crop Info Lookup
 # ----------------------------
 def get_crop_info(crop_name):
-    info_dict = {"rice": "Rice needs warm temperatures and standing water for most of its growing period.",
-    "maize": "Maize prefers well-drained soil and moderate rainfall.",
-    "coffee": "Coffee grows in tropical climates with high humidity and moderate shade.",
-    "apple": "Apple needs cold winters and mild summers.",
-    "chickpea": "Chickpea prefers cool, dry climates and well-drained loamy soils.",
-    "kidneybeans": "Kidney beans grow best in warm conditions with moderate rainfall.",
-    "pigeonpeas": "Pigeon peas thrive in warm climates and tolerate low rainfall.",
-    "mothbeans": "Moth beans are drought-tolerant and grow in sandy, well-drained soils.",
-    "mungbean": "Mung beans prefer warm weather and well-drained soils.",
-    "blackgram": "Black gram grows well in warm, humid climates with loamy soils.",
-    "lentil": "Lentils need cool weather and fertile, well-drained soils.",
-    "pomegranate": "Pomegranate thrives in hot, dry climates with low humidity.",
-    "banana": "Bananas require warm, humid climates and fertile, well-drained soils.",
-    "mango": "Mango trees grow well in tropical and subtropical climates with dry periods.",
-    "grapes": "Grapes prefer warm, dry climates with well-drained soils.",
-    "watermelon": "Watermelon grows in hot climates and sandy loam soils.",
-    "muskmelon": "Muskmelon prefers warm temperatures and sandy, well-drained soils.",
-    "orange": "Oranges thrive in subtropical climates with well-drained sandy loam.",
-    "papaya": "Papaya grows best in tropical climates with consistent warmth and rainfall.",
-    "coconut": "Coconut palms need high humidity, sandy soils, and coastal climates.",
-    "cotton": "Cotton grows in warm climates with moderate rainfall and loamy soils.",
-    "jute": "Jute requires warm, humid climates with alluvial soils and high rainfall."
+    info_dict = {
+        "rice": "Rice needs warm temperatures and standing water for most of its growing period.",
+        "maize": "Maize prefers well-drained soil and moderate rainfall.",
+        "coffee": "Coffee grows in tropical climates with high humidity and moderate shade.",
+        "apple": "Apple needs cold winters and mild summers.",
+        "chickpea": "Chickpea prefers cool, dry climates and well-drained loamy soils.",
+        "kidneybeans": "Kidney beans grow best in warm conditions with moderate rainfall.",
+        "pigeonpeas": "Pigeon peas thrive in warm climates and tolerate low rainfall.",
+        "mothbeans": "Moth beans are drought-tolerant and grow in sandy, well-drained soils.",
+        "mungbean": "Mung beans prefer warm weather and well-drained soils.",
+        "blackgram": "Black gram grows well in warm, humid climates with loamy soils.",
+        "lentil": "Lentils need cool weather and fertile, well-drained soils.",
+        "pomegranate": "Pomegranate thrives in hot, dry climates with low humidity.",
+        "banana": "Bananas require warm, humid climates and fertile, well-drained soils.",
+        "mango": "Mango trees grow well in tropical and subtropical climates with dry periods.",
+        "grapes": "Grapes prefer warm, dry climates with well-drained soils.",
+        "watermelon": "Watermelon grows in hot climates and sandy loam soils.",
+        "muskmelon": "Muskmelon prefers warm temperatures and sandy, well-drained soils.",
+        "orange": "Oranges thrive in subtropical climates with well-drained sandy loam.",
+        "papaya": "Papaya grows best in tropical climates with consistent warmth and rainfall.",
+        "coconut": "Coconut palms need high humidity, sandy soils, and coastal climates.",
+        "cotton": "Cotton grows in warm climates with moderate rainfall and loamy soils.",
+        "jute": "Jute requires warm, humid climates with alluvial soils and high rainfall."
         
     }
-    # return info_dict.get(crop_name.lower(), "No information available.")
+        return info_dict.get(crop_name.lower(), "No information available.")
 
 # ----------------------------
 # Seasonal Chart

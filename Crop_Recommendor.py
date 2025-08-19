@@ -419,6 +419,17 @@ with tab6:
         - Annual range: 200-900mm
         """)
 
+def soil_health():
+    st.subheader("Soil Health Analyzer")
+    with st.expander("Nitrogen Deficiency"):
+        st.image("https://www.gardeningknowhow.com/wp-content/uploads/2019/07/nitrogen-deficiency.jpg")
+        st.write("Symptoms: Yellowing of older leaves, stunted growth")
+    
+    with st.expander("Phosphorus Deficiency"):
+        st.image("https://www.gardeningknowhow.com/wp-content/uploads/2019/07/phosphorus-deficiency.jpg")
+        st.write("Symptoms: Dark green leaves with purple discoloration")
+
+
 
 
 

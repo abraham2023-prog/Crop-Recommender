@@ -221,7 +221,7 @@ fertilizer_dict = {
 # ----------------------------
 # Crop Info Lookup
 # ----------------------------
-def get_crop_info(crop_name):
+    def get_crop_info(crop_name):
     info_dict = {
         "rice": "Rice needs warm temperatures and standing water for most of its growing period.",
         "maize": "Maize prefers well-drained soil and moderate rainfall.",

@@ -74,10 +74,49 @@ def predict_top_crops(N, P, K, temperature, humidity, ph, rainfall):
     return filtered if filtered else top3
 
 # ----------------------------
-# New: Geospatial Visualization
+# Fixed Seasonal Calendar
+# ----------------------------
+def seasonal_calendar():
+    st.subheader("Planting Calendar Guide")
+    
+    # Corrected with matching array lengths
+    months = ["Jan"]*3 + ["Feb"]*3 + ["Mar"]*3 + ["Apr"]*3 + ["May"]*3 + ["Jun"]*3
+    crops = ["Rice", "Wheat", "Maize"] * 6
+    activities = ["Planning", "Planting", "Harvesting"] * 6
+    
+    calendar_data = pd.DataFrame({
+        "Month": months,
+        "Crop": crops,
+        "Activity": activities
+    })
+    
+    fig = px.bar(calendar_data, 
+                 x="Month", 
+                 y="Crop", 
+                 color="Activity",
+                 color_discrete_map={
+                     "Planning": "#636EFA",
+                     "Planting": "#EF553B",
+                     "Harvesting": "#00CC96"
+                 },
+                 category_orders={
+                     "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+                     "Activity": ["Planning", "Planting", "Harvesting"]
+                 })
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+# ----------------------------
+# Geospatial Visualization
 # ----------------------------
 def show_map():
     st.subheader("Optimal Growing Regions")
+    
+    # Ensure we have the required columns
+    if not all(col in crop_df.columns for col in ['temperature', 'rainfall', 'ph', 'label']):
+        st.error("Required columns missing in dataset")
+        return
+    
     map_df = crop_df.groupby('label').agg({
         'temperature': 'mean', 
         'rainfall': 'mean',
@@ -88,8 +127,8 @@ def show_map():
         "ScatterplotLayer",
         map_df,
         get_position=["rainfall", "temperature"],
-        get_radius="ph*10000",
-        get_fill_color=[255, 140, 0],
+        get_radius=100000,
+        get_fill_color=[255, 140, 0, 160],
         pickable=True
     )
     
@@ -104,79 +143,27 @@ def show_map():
         layers=[layer],
         tooltip={
             "html": "<b>Crop:</b> {label}<br/>"
-                    "<b>Avg Temp:</b> {temperature}°C<br/>"
-                    "<b>Avg Rainfall:</b> {rainfall}mm<br/>"
-                    "<b>Soil pH:</b> {ph}",
+                    "<b>Avg Temp:</b> {temperature:.1f}°C<br/>"
+                    "<b>Avg Rainfall:</b> {rainfall:.1f}mm<br/>"
+                    "<b>Soil pH:</b> {ph:.1f}",
             "style": {"backgroundColor": "white", "color": "black"}
         }
     ))
 
 # ----------------------------
-# New: Seasonal Calendar
-# ----------------------------
-def seasonal_calendar():
-    st.subheader("Planting Calendar Guide")
-    
-    # Synthetic data - replace with real seasonal data
-    calendar_data = pd.DataFrame({
-        "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]*3,
-        "Crop": ["Rice"]*12 + ["Wheat"]*12 + ["Maize"]*12,
-        "Activity": ["Planning"]*3 + ["Planting"]*3 + ["Growing"]*3 + ["Harvesting"]*3
-    })
-    
-    fig = px.bar(calendar_data, 
-                 x="Month", 
-                 y="Crop", 
-                 color="Activity",
-                 color_discrete_map={
-                     "Planning": "#636EFA",
-                     "Planting": "#EF553B",
-                     "Growing": "#00CC96",
-                     "Harvesting": "#AB63FA"
-                 },
-                 category_orders={
-                     "Activity": ["Planning", "Planting", "Growing", "Harvesting"],
-                     "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-                              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                 })
-    
-    st.plotly_chart(fig, use_container_width=True)
-
-# ----------------------------
-# New: Market Trends
+# Market Trends
 # ----------------------------
 @st.cache_data
 def load_market_data():
-    # Mock data - replace with real API integration
     return pd.DataFrame({
-        "Crop": ["Rice", "Wheat", "Maize", "Cotton", "Coffee"],
-        "Current Price ($/kg)": [0.45, 0.32, 0.28, 1.20, 5.80],
-        "3 Month Trend": ["↑ 5%", "↓ 2%", "→ Stable", "↑ 12%", "↑ 8%"],
-        "Demand": ["High", "Medium", "High", "Medium", "Very High"]
+        "Crop": ["Rice", "Wheat", "Maize"],
+        "Current Price ($/kg)": [0.45, 0.32, 0.28],
+        "Trend": ["↑ 5%", "↓ 2%", "→ Stable"],
+        "Demand": ["High", "Medium", "High"]
     })
 
 # ----------------------------
-# Original: Fertilizer Recommendations
-# ----------------------------
-fertilizer_dict = {
-    "rice": "Apply urea, DAP, and potash at recommended doses during planting.",
-    "maize": "Nitrogen-rich fertilizers during growth stage; potash for root strength.",
-    # ... (keep your original fertilizer dictionary)
-}
-
-# ----------------------------
-# Original: Crop Info Lookup
-# ----------------------------
-def get_crop_info(crop_name):
-    info_dict = {
-        "rice": "Rice needs warm temperatures and standing water for most of its growing period.",
-        # ... (keep your original info dictionary)
-    }
-    return info_dict.get(crop_name.lower(), "No information available.")
-
-# ----------------------------
-# Streamlit App Layout
+# Original App Tabs
 # ----------------------------
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🌱 Recommendation", 
@@ -187,7 +174,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🌍 Insights Dashboard"
 ])
 
-# --- Tab 1: Original Recommendation System ---
+# --- Tab 1: Recommendation System ---
 with tab1:
     st.header("Get Crop Recommendations")
     
@@ -210,74 +197,15 @@ with tab1:
         
         for crop_name, prob in top_crops:
             with st.expander(f"{crop_name.title()} ({prob*100:.1f}% confidence)"):
-                st.write(get_crop_info(crop_name))
-                st.info(f"**Fertilizer Recommendation:** {fertilizer_dict.get(crop_name, 'Not available')}")
-        
-        # Feature importance chart
-        features = ['N', 'P', 'K', 'Temperature', 'Humidity', 'pH', 'Rainfall']
-        importance = pd.DataFrame({
-            "Feature": features, 
-            "Importance": rf.feature_importances_
-        }).sort_values('Importance', ascending=False)
-        
-        st.subheader("Feature Importance")
-        st.bar_chart(importance.set_index("Feature"))
+                st.write(f"**Ideal Conditions:**\n\n"
+                        f"- Temperature: {crop_df[crop_df['label']==crop_name]['temperature'].mean():.1f}°C\n"
+                        f"- Rainfall: {crop_df[crop_df['label']==crop_name]['rainfall'].mean():.1f}mm\n"
+                        f"- pH: {crop_df[crop_df['label']==crop_name]['ph'].mean():.1f}")
+                
+                st.info(f"**Fertilizer Recommendation:**\n\n"
+                       f"{fertilizer_dict.get(crop_name, 'Data not available')}")
 
-# --- Tab 2-5: Keep your original tabs ---
-with tab2:
-    st.header("Crop Information Lookup")
-    crop_name = st.selectbox("Select a crop", sorted(crop_df['label'].unique()))
-    st.info(get_crop_info(crop_name))
-
-with tab3:
-    st.header("Fertilizer Recommendations")
-    crop_name = st.selectbox("Select a crop for fertilizer advice", sorted(fertilizer_dict.keys()))
-    st.success(fertilizer_dict.get(crop_name, "No fertilizer advice available."))
-
-with tab4:
-    st.header("Seasonal Crop Chart")
-    fig = px.scatter(
-        crop_df, x="temperature", y="rainfall", color="label",
-        title="Seasonal Crop Distribution",
-        labels={"temperature": "Temperature (°C)", "rainfall": "Rainfall (mm)"},
-        opacity=0.7
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-with tab5:
-    st.header("Upload Dataset for Batch Prediction")
-    uploaded_file = st.file_uploader("Upload CSV or Excel", type=["csv", "xlsx"])
-
-    if uploaded_file is not None:
-        if uploaded_file.name.endswith(".csv"):
-            new_df = pd.read_csv(uploaded_file)
-        else:
-            new_df = pd.read_excel(uploaded_file)
-
-        st.subheader("Uploaded Data Preview")
-        st.dataframe(new_df.head())
-
-        try:
-            features = new_df[['N', 'P', 'K', 'temperature', 'humidity', 'ph', 'rainfall']]
-            mx_features = mx.transform(features)
-            sc_features = sc.transform(mx_features)
-            predictions = rf.predict(sc_features)
-            new_df['Predicted_Crop'] = predictions
-            
-            st.subheader("Predictions")
-            st.dataframe(new_df)
-
-            csv = new_df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label="Download Predictions",
-                data=csv,
-                file_name="crop_predictions.csv",
-                mime="text/csv"
-            )
-        except Exception as e:
-            st.error(f"Prediction error: {str(e)}")
-
-# --- Tab 6: New Insights Dashboard ---
+# --- Tab 6: Insights Dashboard ---
 with tab6:
     st.header("Agricultural Insights Dashboard")
     
@@ -286,50 +214,45 @@ with tab6:
     with tab_a:
         show_map()
         st.markdown("""
-        **How to use this map:**
-        - Each circle represents optimal conditions for a crop
-        - Position shows average rainfall (X) and temperature (Y)
-        - Circle size indicates preferred soil pH level
+        **Map Interpretation:**
+        - Each point shows optimal conditions for different crops
+        - Position indicates average rainfall (X) and temperature (Y)
+        - Point size represents typical soil pH preference
         """)
     
     with tab_b:
         seasonal_calendar()
         st.markdown("""
-        **Key to activities:**
-        - 🔵 Planning: Soil preparation and seed selection
+        **Calendar Guide:**
+        - 🔵 Planning: Soil prep and seed selection
         - 🔴 Planting: Optimal planting window
-        - 🟢 Growing: Active growth period
-        - 🟣 Harvesting: Recommended harvest time
+        - 🟢 Harvesting: Recommended harvest period
         """)
     
     with tab_c:
         st.subheader("Current Market Trends")
         market_data = load_market_data()
         
-        # Price trends visualization
         fig = px.bar(market_data, 
                      x="Crop", 
                      y="Current Price ($/kg)",
                      color="Demand",
-                     color_discrete_sequence=["green", "orange", "red"])
+                     color_discrete_map={
+                         "High": "green",
+                         "Medium": "orange",
+                         "Low": "red"
+                     })
         st.plotly_chart(fig, use_container_width=True)
         
-        # Raw data table
         st.dataframe(
             market_data.style.format({
                 "Current Price ($/kg)": "${:.2f}"
-            }).applymap(
-                lambda x: "color: green" if "↑" in str(x) else "color: red" if "↓" in str(x) else "", 
-                subset=["3 Month Trend"]
+            }).apply(
+                lambda x: ["color: green" if "↑" in v else "color: red" if "↓" in v else "" 
+                          for v in x],
+                subset=["Trend"]
             )
         )
-        
-        st.markdown("""
-        **Market Insights:**
-        - Prices updated weekly from agricultural markets
-        - Trends show 3-month price movement
-        - Demand levels indicate current market preference
-        """)
 
 # Mobile responsive CSS
 st.markdown("""

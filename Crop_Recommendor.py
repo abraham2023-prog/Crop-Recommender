@@ -7,9 +7,9 @@ import pydeck as pdk
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-import openai
+# import openai
 
-openai.api_key = st.secrets["openai"]["api_key"]
+# openai.api_key = st.secrets["openai"]["api_key"]
 
 # ----------------------------
 # Page Config

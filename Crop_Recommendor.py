@@ -419,40 +419,65 @@ with tab6:
         - Annual range: 200-900mm
         """)
 
-# Soil health analyzer
+# ----------------------------
+# Additional Features (Conditional Imports)
+# ----------------------------
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    st.warning("OpenAI features disabled - package not installed")
+
+# ----------------------------
+# Soil Health Analyzer
+# ----------------------------
 def soil_health():
     st.subheader("Soil Health Analyzer")
     with st.expander("Nitrogen Deficiency"):
-        st.image("https://www.gardeningknowhow.com/wp-content/uploads/2019/07/nitrogen-deficiency.jpg")
+        st.image("https://www.gardeningknowhow.com/wp-content/uploads/2019/07/nitrogen-deficiency.jpg", 
+                width=300)
         st.write("Symptoms: Yellowing of older leaves, stunted growth")
     
     with st.expander("Phosphorus Deficiency"):
-        st.image("https://www.gardeningknowhow.com/wp-content/uploads/2019/07/phosphorus-deficiency.jpg")
+        st.image("https://www.gardeningknowhow.com/wp-content/uploads/2019/07/phosphorus-deficiency.jpg",
+                width=300)
         st.write("Symptoms: Dark green leaves with purple discoloration")
 
-# Markrt price
+# ----------------------------
+# Market Trends
+# ----------------------------
 @st.cache_data
 def load_market_data():
-    # Mock data - replace with real API integration
     return pd.DataFrame({
-        "Crop": ["Rice", "Wheat", "Corn"],
-        "Current Price": [12.5, 8.2, 4.7],
-        "Trend": ["↑ 2%", "↓ 1.5%", "→ Stable"]
+        "Crop": ["Rice", "Wheat", "Maize"],
+        "Current Price ($/kg)": [0.45, 0.32, 0.28],
+        "3 Month Trend": ["↑ 5%", "↓ 2%", "→ Stable"],
+        "Demand": ["High", "Medium", "High"]
     })
 
 def market_trends():
     st.subheader("Market Prices")
     df = load_market_data()
-    st.dataframe(df.style.highlight_max(axis=0))
+    st.dataframe(
+        df.style.format({"Current Price ($/kg)": "${:.2f}"})
+              .apply(lambda x: ["color: green" if "↑" in v else 
+                              "color: red" if "↓" in v else "" 
+                              for v in x], 
+                    subset=["3 Month Trend"])
+    )
     
-    # Add refresh button
     if st.button("Refresh Market Data"):
         st.cache_data.clear()
-        df = load_market_data()
-# AI chat assistant
-from openai import OpenAI
 
+# ----------------------------
+# AI Chat Assistant (Conditional)
+# ----------------------------
 def crop_assistant():
+    if not OPENAI_AVAILABLE:
+        st.warning("Chat assistant disabled - OpenAI package not installed")
+        return
+    
     st.subheader("Crop Advisor Chat")
     
     if "messages" not in st.session_state:
@@ -467,27 +492,15 @@ def crop_assistant():
         with st.chat_message("user"):
             st.markdown(prompt)
         
-        # Mock response - replace with real API call
-        response = f"Based on your query about '{prompt}', I recommend checking soil nitrogen levels first."
+        # Simple response without API call
+        response = f"I see you're asking about '{prompt}'. For detailed advice, please install the OpenAI package."
         with st.chat_message("assistant"):
             st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-# Mobile optimizer
-st.markdown("""
-<style>
-@media screen and (max-width: 600px) {
-    .stNumberInput, .stSelectbox {
-        width: 100% !important;
-    }
-    .stButton>button {
-        width: 100%;
-    }
-}
-</style>
-""", unsafe_allow_html=True)
-
-# User account and History
+# ----------------------------
+# User Profile System
+# ----------------------------
 def user_profile():
     if 'user' not in st.session_state:
         st.text_input("Enter your name to save predictions", key='user_name')
@@ -496,7 +509,50 @@ def user_profile():
             st.success("Profile saved!")
     else:
         st.success(f"Welcome back {st.session_state.user}!")
-        # Add prediction history logic here
+        if 'history' in st.session_state:
+            st.write("### Prediction History")
+            st.dataframe(st.session_state.history)
+
+# ----------------------------
+# Mobile Optimization CSS
+# ----------------------------
+st.markdown("""
+<style>
+@media screen and (max-width: 600px) {
+    .stNumberInput, .stSelectbox, .stSlider {
+        width: 100% !important;
+    }
+    .stButton>button {
+        width: 100%;
+    }
+    [data-testid="stHorizontalBlock"] {
+        flex-direction: column;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ----------------------------
+# Add New Tabs for Additional Features
+# ----------------------------
+tab7, tab8, tab9, tab10 = st.tabs([
+    "🌱 Soil Health", 
+    "💲 Market Trends", 
+    "💬 Crop Advisor",
+    "👤 User Profile"
+])
+
+with tab7:
+    soil_health()
+
+with tab8:
+    market_trends()
+
+with tab9:
+    crop_assistant()
+
+with tab10:
+    user_profile()
 
 
 

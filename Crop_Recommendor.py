@@ -246,7 +246,7 @@ def get_crop_info(crop_name):
         "cotton": "Cotton grows in warm climates with moderate rainfall and loamy soils.",
         "jute": "Jute requires warm, humid climates with alluvial soils and high rainfall."
     }
-    return info_dict.get(crop_name.lower(), "No information available.")
+        return info_dict.get(crop_name.lower(), "No information available.")
 
 # ----------------------------
 # Seasonal Chart

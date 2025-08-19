@@ -2,17 +2,18 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import pydeck as pdk
+import pickle
+import os
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
+import plotly.express as px
 
 # ----------------------------
 # Page Config
 # ----------------------------
 st.set_page_config(
-    page_title="Crop Recommendation System Pro",
+    page_title="Crop Recommendation System",
     page_icon="🌱",
     layout="wide"
 )
@@ -52,7 +53,7 @@ def train_model(data):
 rf, mx, sc = train_model(crop_df)
 
 # ----------------------------
-# Prediction Functions
+# Predict Function
 # ----------------------------
 def predict_top_crops(N, P, K, temperature, humidity, ph, rainfall):
     features = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
@@ -62,7 +63,6 @@ def predict_top_crops(N, P, K, temperature, humidity, ph, rainfall):
     top3_idx = np.argsort(probs)[::-1][:3]
     top3 = [(rf.classes_[i], probs[i]) for i in top3_idx]
 
-    # Add simple filtering logic for certain crops
     filtered = []
     for crop, prob in top3:
         if crop == "coffee" and not (18 <= temperature <= 28 and humidity >= 60):
@@ -72,118 +72,6 @@ def predict_top_crops(N, P, K, temperature, humidity, ph, rainfall):
         filtered.append((crop, prob))
 
     return filtered if filtered else top3
-
-# ----------------------------
-# Eritrea Data
-# ----------------------------
-@st.cache_data
-def load_eritrea_data():
-    return pd.DataFrame({
-        "Crop": ["Sorghum", "Barley", "Teff", "Maize", "Wheat"],
-        "Region": ["Lowlands", "Highlands", "Mid-altitude", "River Valleys", "Highlands"],
-        "Latitude": [15.179, 15.423, 15.322, 15.256, 15.401],
-        "Longitude": [38.925, 38.847, 38.901, 38.932, 38.812],
-        "Min_Temp": [24, 12, 18, 20, 10],
-        "Max_Temp": [32, 22, 28, 30, 20],
-        "Rainfall": [400, 350, 450, 500, 300],
-        "Planting_Season": ["Jun-Jul", "Jul-Aug", "Jun-Jul", "May-Jun", "Jul-Aug"],
-        "Harvest_Season": ["Nov-Dec", "Dec-Jan", "Nov-Dec", "Oct-Nov", "Dec-Jan"],
-        "Color": ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF"]
-    })
-
-def show_eritrea_map():
-    st.subheader("🇪🇷 Optimal Growing Regions in Eritrea")
-    eritrea_df = load_eritrea_data()
-    
-    layer = pdk.Layer(
-        "ScatterplotLayer",
-        eritrea_df,
-        get_position=["Longitude", "Latitude"],
-        get_radius=10000,
-        get_fill_color="Color",
-        get_line_color=[0, 0, 0],
-        pickable=True,
-        opacity=0.8
-    )
-    
-    st.pydeck_chart(pdk.Deck(
-        map_style="mapbox://styles/mapbox/satellite-streets-v11",
-        initial_view_state=pdk.ViewState(
-            latitude=15.179,
-            longitude=38.925,
-            zoom=6,
-            pitch=45
-        ),
-        layers=[layer],
-        tooltip={
-            "html": """
-            <b>Crop:</b> {Crop}<br/>
-            <b>Region:</b> {Region}<br/>
-            <b>Temp Range:</b> {Min_Temp}°C - {Max_Temp}°C<br/>
-            <b>Rainfall:</b> {Rainfall}mm/year<br/>
-            <b>Planting:</b> {Planting_Season}<br/>
-            <b>Harvest:</b> {Harvest_Season}
-            """,
-            "style": {"backgroundColor": "white", "color": "black"}
-        }
-    ))
-    
-    with st.expander("🗺️ Map Legend"):
-        st.markdown("""
-        - 🔴 Sorghum (Lowlands)  
-        - 🟢 Barley (Highlands)  
-        - 🔵 Teff (Mid-altitude)  
-        - 🟡 Maize (River valleys)  
-        - 🟣 Wheat (High elevations)  
-        """)
-
-def eritrea_seasonal_calendar():
-    st.subheader("🌦️ Eritrea Seasonal Planning")
-    eritrea_df = load_eritrea_data()
-    
-    planting_months = {
-        "Jun-Jul": ("2023-06-01", "2023-07-31"),
-        "Jul-Aug": ("2023-07-01", "2023-08-31"),
-        "May-Jun": ("2023-05-01", "2023-06-30")
-    }
-    harvest_months = {
-        "Nov-Dec": ("2023-11-01", "2023-12-31"),
-        "Dec-Jan": ("2023-12-01", "2024-01-31"),
-        "Oct-Nov": ("2023-10-01", "2023-11-30")
-    }
-    
-    timeline_data = []
-    for _, row in eritrea_df.iterrows():
-        timeline_data.append({
-            "Crop": row["Crop"],
-            "Start": planting_months[row["Planting_Season"]][0],
-            "End": planting_months[row["Planting_Season"]][1],
-            "Stage": "Planting",
-            "Color": row["Color"]
-        })
-        timeline_data.append({
-            "Crop": row["Crop"],
-            "Start": harvest_months[row["Harvest_Season"]][0],
-            "End": harvest_months[row["Harvest_Season"]][1],
-            "Stage": "Harvest",
-            "Color": row["Color"]
-        })
-    
-    timeline_df = pd.DataFrame(timeline_data)
-    timeline_df["Start"] = pd.to_datetime(timeline_df["Start"])
-    timeline_df["End"] = pd.to_datetime(timeline_df["End"])
-    
-    fig = px.timeline(
-        timeline_df,
-        x_start="Start",
-        x_end="End",
-        y="Crop",
-        color="Crop",
-        color_discrete_map=dict(zip(eritrea_df["Crop"], eritrea_df["Color"])),
-        facet_row="Stage",
-        title="Eritrea Crop Calendar"
-    )
-    st.plotly_chart(fig, use_container_width=True)
 
 # ----------------------------
 # Fertilizer Recommendations
@@ -211,37 +99,37 @@ fertilizer_dict = {
     "coconut": "NPK with extra potassium; magnesium sulfate and organic mulch recommended.",
     "cotton": "Balanced NPK; extra nitrogen during early growth and potassium during boll formation.",
     "jute": "Nitrogen for vegetative growth; phosphorus and potassium for fiber quality."
-}  
+}
 
 # ----------------------------
 # Crop Info Lookup
 # ----------------------------
 def get_crop_info(crop_name):
     info_dict = {
-        "rice": "Rice needs warm temperatures and standing water for most of its growing period.",
-        "maize": "Maize prefers well-drained soil and moderate rainfall.",
-        "coffee": "Coffee grows in tropical climates with high humidity and moderate shade.",
-        "apple": "Apple needs cold winters and mild summers.",
-        "chickpea": "Chickpea prefers cool, dry climates and well-drained loamy soils.",
-        "kidneybeans": "Kidney beans grow best in warm conditions with moderate rainfall.",
-        "pigeonpeas": "Pigeon peas thrive in warm climates and tolerate low rainfall.",
-        "mothbeans": "Moth beans are drought-tolerant and grow in sandy, well-drained soils.",
-        "mungbean": "Mung beans prefer warm weather and well-drained soils.",
-        "blackgram": "Black gram grows well in warm, humid climates with loamy soils.",
-        "lentil": "Lentils need cool weather and fertile, well-drained soils.",
-        "pomegranate": "Pomegranate thrives in hot, dry climates with low humidity.",
-        "banana": "Bananas require warm, humid climates and fertile, well-drained soils.",
-        "mango": "Mango trees grow well in tropical and subtropical climates with dry periods.",
-        "grapes": "Grapes prefer warm, dry climates with well-drained soils.",
-        "watermelon": "Watermelon grows in hot climates and sandy loam soils.",
-        "muskmelon": "Muskmelon prefers warm temperatures and sandy, well-drained soils.",
-        "orange": "Oranges thrive in subtropical climates with well-drained sandy loam.",
-        "papaya": "Papaya grows best in tropical climates with consistent warmth and rainfall.",
-        "coconut": "Coconut palms need high humidity, sandy soils, and coastal climates.",
-        "cotton": "Cotton grows in warm climates with moderate rainfall and loamy soils.",
-        "jute": "Jute requires warm, humid climates with alluvial soils and high rainfall."
-        
-    }
+    "rice": "Rice needs warm temperatures and standing water for most of its growing period.",
+    "maize": "Maize prefers well-drained soil and moderate rainfall.",
+    "coffee": "Coffee grows in tropical climates with high humidity and moderate shade.",
+    "apple": "Apple needs cold winters and mild summers.",
+    "chickpea": "Chickpea prefers cool, dry climates and well-drained loamy soils.",
+    "kidneybeans": "Kidney beans grow best in warm conditions with moderate rainfall.",
+    "pigeonpeas": "Pigeon peas thrive in warm climates and tolerate low rainfall.",
+    "mothbeans": "Moth beans are drought-tolerant and grow in sandy, well-drained soils.",
+    "mungbean": "Mung beans prefer warm weather and well-drained soils.",
+    "blackgram": "Black gram grows well in warm, humid climates with loamy soils.",
+    "lentil": "Lentils need cool weather and fertile, well-drained soils.",
+    "pomegranate": "Pomegranate thrives in hot, dry climates with low humidity.",
+    "banana": "Bananas require warm, humid climates and fertile, well-drained soils.",
+    "mango": "Mango trees grow well in tropical and subtropical climates with dry periods.",
+    "grapes": "Grapes prefer warm, dry climates with well-drained soils.",
+    "watermelon": "Watermelon grows in hot climates and sandy loam soils.",
+    "muskmelon": "Muskmelon prefers warm temperatures and sandy, well-drained soils.",
+    "orange": "Oranges thrive in subtropical climates with well-drained sandy loam.",
+    "papaya": "Papaya grows best in tropical climates with consistent warmth and rainfall.",
+    "coconut": "Coconut palms need high humidity, sandy soils, and coastal climates.",
+    "cotton": "Cotton grows in warm climates with moderate rainfall and loamy soils.",
+    "jute": "Jute requires warm, humid climates with alluvial soils and high rainfall."
+}
+
     return info_dict.get(crop_name.lower(), "No information available.")
 
 # ----------------------------
@@ -272,13 +160,15 @@ def batch_predict(df):
         return None
 
 # ----------------------------
-# Streamlit App Layout
+# Streamlit Tabs
 # ----------------------------
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "🌱 Recommendation", "📖 Crop Info", "💧 Fertilizer Guide",
-    "📊 Seasonal Chart", "📂 Batch Predict", "🇪🇷 Eritrea Focus"
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "🌱 Crop Recommendation",
+    "📖 Crop Info",
+    "💧 Fertilizer Guide",
+    "📊 Seasonal Chart",
+    "📂 Upload & Predict"
 ])
-
 
 # --- Tab 1: Recommendation ---
 with tab1:

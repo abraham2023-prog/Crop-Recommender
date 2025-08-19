@@ -7,6 +7,9 @@ import pydeck as pdk
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
+import openai
+
+openai.api_key = st.secrets["openai"]["api_key"]
 
 # ----------------------------
 # Page Config
@@ -470,33 +473,54 @@ def market_trends():
     if st.button("Refresh Market Data"):
         st.cache_data.clear()
 
+
 # ----------------------------
-# AI Chat Assistant (Conditional)
+# AI Chat Assistant
 # ----------------------------
 def crop_assistant():
-    if not OPENAI_AVAILABLE:
-        st.warning("Chat assistant disabled - OpenAI package not installed")
-        return
-    
     st.subheader("Crop Advisor Chat")
     
+    # Initialize session state for messages
     if "messages" not in st.session_state:
-        st.session_state.messages = []
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Ask me anything about crops!"}
+        ]
     
+    # Display chat messages
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
     
+    # Handle user input
     if prompt := st.chat_input("Ask about crops..."):
+        # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        # Display user message
         with st.chat_message("user"):
             st.markdown(prompt)
         
-        # Simple response without API call
-        response = f"I see you're asking about '{prompt}'. For detailed advice, please install the OpenAI package."
+        try:
+            # Generate AI response (using gpt-3.5-turbo as example)
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are an agricultural expert specializing in crop recommendations and farming advice."},
+                    *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
+                ],
+                temperature=0.7
+            )
+            ai_response = response.choices[0].message.content
+            
+        except Exception as e:
+            ai_response = f"Error: {str(e)}. Please check your OpenAI setup."
+        
+        # Display assistant response
         with st.chat_message("assistant"):
-            st.markdown(response)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+            st.markdown(ai_response)
+        
+        # Add assistant response to chat history
+        st.session_state.messages.append({"role": "assistant", "content": ai_response})
 
 # ----------------------------
 # User Profile System

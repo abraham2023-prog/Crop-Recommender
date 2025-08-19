@@ -397,6 +397,27 @@ with tab5:
                 file_name="predictions.csv",
                 mime="text/csv"
             )
+            
+# --- New Eritrea-Focused Tab ---
+with tab6:
+    st.header("Eritrea-Specific Agricultural Tools")
+    show_eritrea_map()
+    eritrea_seasonal_calendar()
+    
+    # Add climate summary
+    with st.expander("🌡️ Eritrea Climate Overview"):
+        st.markdown("""
+        **Key Climate Zones:**
+        - **Coastal Plain:** Hot and humid (25-35°C)
+        - **Western Lowlands:** Hot and arid (30-42°C)
+        - **Central Highlands:** Temperate (15-25°C)
+        - **Eastern Escarpment:** Variable (20-30°C)
+        
+        **Rainfall Patterns:**
+        - Main rainy season (June-Sept)
+        - Short rains (March-April)
+        - Annual range: 200-900mm
+        """)
 
 
 
